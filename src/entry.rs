@@ -604,7 +604,12 @@ impl<'a> EntryFields<'a> {
                     relative
                 }
 
-                let link_target = make_relative(dst, link_target);                
+                let link_target = if link_target.is_absolute() {
+                    let link_target = make_relative(dst, link_target);                
+                    link_target
+                } else {
+                    link_target
+                };
                     
                 symlink(&link_target, dst)
                     .or_else(|err_io| {
