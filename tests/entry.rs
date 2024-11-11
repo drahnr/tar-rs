@@ -11,7 +11,7 @@ macro_rules! t {
     ($e:expr) => {
         match $e {
             Ok(v) => v,
-            Err(e) => panic!("{} returned {}", stringify!($e), e),
+            Err(e) => { eprintln!("{} returned {}", stringify!($e), e); Err(e).unwrap() }
         }
     };
 }
@@ -34,12 +34,8 @@ fn absolute_symlink() {
     let td = t!(Builder::new().prefix("tar").tempdir());
     t!(ar.unpack(td.path()));
 
-    t!(td.path().join("foo").symlink_metadata());
-
-    let mut ar = tar::Archive::new(&bytes[..]);
-    let mut entries = t!(ar.entries());
-    let entry = t!(entries.next().unwrap());
-    assert_eq!(&*entry.link_name_bytes().unwrap(), b"/bar");
+    t!(td.path().join("foo").metadata());
+    t!(td.path().join("bar").symlink_metadata());
 }
 
 #[test]
@@ -146,7 +142,7 @@ fn absolute_link_deref_error() {
     let mut ar = tar::Archive::new(&bytes[..]);
 
     let td = t!(Builder::new().prefix("tar").tempdir());
-    assert!(ar.unpack(td.path()).is_err());
+    assert!(dbg!(ar.unpack(td.path())).is_err());
     t!(td.path().join("foo").symlink_metadata());
     assert!(File::open(td.path().join("foo").join("bar")).is_err());
 }
@@ -174,7 +170,7 @@ fn relative_link_deref_error() {
     let mut ar = tar::Archive::new(&bytes[..]);
 
     let td = t!(Builder::new().prefix("tar").tempdir());
-    assert!(ar.unpack(td.path()).is_err());
+    assert!(dbg!(ar.unpack(td.path())).is_err());
     t!(td.path().join("foo").symlink_metadata());
     assert!(File::open(td.path().join("foo").join("bar")).is_err());
 }

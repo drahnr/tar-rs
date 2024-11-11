@@ -539,57 +539,61 @@ impl<'a> EntryFields<'a> {
                 )));
             }
 
-            if kind.is_hard_link() {
-                let link_src = match target_base {
-                    // If we're unpacking within a directory then ensure that
-                    // the destination of this hard link is both present and
-                    // inside our own directory. This is needed because we want
-                    // to make sure to not overwrite anything outside the root.
-                    // If the link points to an absolute path, assume it's relative
-                    // to the target dir by removing the leading '/', as we already
-                    // do for files, see unpack_in() comments.
-                    //
-                    // Note that this logic is only needed for hard links
-                    // currently. With symlinks the `validate_inside_dst` which
-                    // happens before this method as part of `unpack_in` will
-                    // use canonicalization to ensure this guarantee. For hard
-                    // links though they're canonicalized to their existing path
-                    // so we need to validate at this time.
-                    Some(ref p) => {
-                        let mut src = src.to_path_buf();
-                        if src.is_absolute() {
-                            let dest_canon = p.canonicalize()?;
-                            if !self.path_has_base(&src, &dest_canon) {
-                                // Skip root component, making the target relative to the target dir.
-                                // Also skip prefix because on Windows the path may use the extended syntax.
-                                src = src
-                                    .components()
-                                    .skip_while(|c| {
-                                        matches!(*c, Component::RootDir | Component::Prefix(_))
-                                    })
-                                    .collect();
-                            }
+            let src = match target_base {
+                // If we're unpacking within a directory then ensure that
+                // the destination of this hard link is both present and
+                // inside our own directory. This is needed because we want
+                // to make sure to not overwrite anything outside the root.
+                // If the link points to an absolute path, assume it's relative
+                // to the target dir by removing the leading '/', as we already
+                // do for files, see unpack_in() comments.
+                //
+                // Note that this logic is only needed for hard links
+                // currently. With symlinks the `validate_inside_dst` which
+                // happens before this method as part of `unpack_in` will
+                // use canonicalization to ensure this guarantee. For hard
+                // links though they're canonicalized to their existing path
+                // so we need to validate at this time.
+                Some(ref p) => {
+                    let mut src = src.to_path_buf();
+                    if src.is_absolute() {
+                        // let p = p.canonicalize()?;
+                        if !self.path_has_base(&src, &p) {
+                            // Skip root component, making the target relative to the target dir.
+                            // Also skip prefix because on Windows the path may use the extended syntax.
+                            src = PathBuf::from_iter(src
+                                .components()
+                                .skip_while(|c| {
+                                    matches!(*c, Component::RootDir | Component::Prefix(_))
+                                }));
                         }
-
-                        let link_src = p.join(src);
-                        self.validate_inside_dst(p, &link_src)?;
-                        link_src
                     }
-                    None => src.into_owned(),
-                };
-                fs::hard_link(&link_src, dst).map_err(|err| {
+
+                    let target_local_src = p.join(src);
+                    if kind.is_hard_link() {
+                        // for softlinks, the file might not exist just yet during unpacking
+                        // since there is no strict unpacks-before-relationship
+                        self.validate_inside_dst(p, &target_local_src)?;
+                    }
+                    target_local_src
+                }
+                None => src.into_owned(),
+            };
+            
+            if kind.is_hard_link() {
+                dbg!(fs::hard_link(dbg!(&src), dbg!(dst))).map_err(|err| {
                     Error::new(
                         err.kind(),
                         format!(
                             "{} when hard linking {} to {}",
                             err,
-                            link_src.display(),
+                            src.display(),
                             dst.display()
                         ),
                     )
                 })?;
             } else {
-                symlink(&src, dst)
+                dbg!(symlink(dbg!(&src), dbg!(dst)))
                     .or_else(|err_io| {
                         if err_io.kind() == io::ErrorKind::AlreadyExists && self.overwrite {
                             // remove dest and try once more
