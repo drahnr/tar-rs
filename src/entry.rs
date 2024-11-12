@@ -574,7 +574,6 @@ impl<'a> EntryFields<'a> {
                     )
                 })?;
             } else {
-
                 let link_target = match target_base {
                     Some(ref p) => {
                         let mut link_target = link_target.to_path_buf();
