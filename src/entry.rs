@@ -564,7 +564,6 @@ impl<'a> EntryFields<'a> {
                     None => link_target.into_owned(),
                 };
                 
-                eprintln!(" hard> {} -> {}", dst.display(), link_target.display());
                 fs::hard_link(&link_target, dst).map_err(|err| {
                     Error::new(
                         err.kind(),
@@ -594,7 +593,6 @@ impl<'a> EntryFields<'a> {
                             }
     
                             link_target = p.join(link_target);
-                            dbg!(&link_target);
                             assert!(link_target.is_absolute());
                             link_target = make_relative(dst, link_target);
                         }
@@ -604,7 +602,6 @@ impl<'a> EntryFields<'a> {
                     None => link_target.into_owned(),
                 };
     
-                eprintln!(" SOFT> {} -> {}", dst.display(), link_target.display());
                 symlink(&link_target, dst)
                     .or_else(|err_io| {
                         if err_io.kind() == io::ErrorKind::AlreadyExists && self.overwrite {
