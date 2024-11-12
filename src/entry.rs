@@ -587,7 +587,7 @@ impl<'a> EntryFields<'a> {
                                         matches!(*c, Component::RootDir | Component::Prefix(_))
                                     }));
                             }
-    
+
                             link_target = p.join(link_target);
                             assert!(link_target.is_absolute());
                             link_target = make_relative(dst, link_target);
