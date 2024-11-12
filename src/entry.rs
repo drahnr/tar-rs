@@ -567,9 +567,29 @@ impl<'a> EntryFields<'a> {
                                     matches!(*c, Component::RootDir | Component::Prefix(_))
                                 }));
                         }
+                        link_target = p.join(link_target);
+                        
+                        /// Create the relative path starting `from` to `to`.
+                        fn make_relative(from: impl AsRef<std::path::Path>, to: impl AsRef<std::path::Path>) -> std::path::PathBuf {
+                            let from = from.as_ref();
+                            let to = to.as_ref();
+                            let from_n = from.components().count();
+                            let to_n = to.components().count();
+                            let common = 
+                            from.components().zip(to.components()).take_while(|(x,y)| x == y).count();
+                            assert!(common <= from_n);
+                            assert!(common < to_n);
+                            let up = std::path::PathBuf::from_iter(std::iter::repeat_with(||std::path::PathBuf::from("..")).take(from_n.saturating_sub(common+1)));
+                            let relative = up.join(std::path::PathBuf::from_iter(to.components().skip(common)));
+                            eprintln!(" rel> {} ^ {}  ------>  {} + {}", from.display(), to.display(), from.display(), relative.display());
+                            relative
+                        }
                     }
-
-                    p.join(link_target)
+                    if kind.is_hard_link() {
+                        link_target
+                    } else {
+                        make_relative(dst, link_target)
+                    }
                 }
                 None => link_target.into_owned(),
             };
@@ -587,30 +607,6 @@ impl<'a> EntryFields<'a> {
                     )
                 })?;
             } else {
-                /// Create the relative path starting `from` to `to`.
-                    
-                fn make_relative(from: impl AsRef<std::path::Path>, to: impl AsRef<std::path::Path>) -> std::path::PathBuf {
-                    let from = from.as_ref();
-                    let to = to.as_ref();
-                    let from_n = from.components().count();
-                    let to_n = to.components().count();
-                    let common = 
-                    from.components().zip(to.components()).take_while(|(x,y)| x == y).count();
-                    assert!(common <= from_n);
-                    assert!(common < to_n);
-                    let up = std::path::PathBuf::from_iter(std::iter::repeat_with(||std::path::PathBuf::from("..")).take(from_n.saturating_sub(common+1)));
-                    let relative = up.join(std::path::PathBuf::from_iter(to.components().skip(common)));
-                    eprintln!(" rel> {} ^ {}  ------>  {} + {}", from.display(), to.display(), from.display(), relative.display());
-                    relative
-                }
-
-                let link_target = if link_target.is_absolute() {
-                    let link_target = make_relative(dst, link_target);                
-                    link_target
-                } else {
-                    link_target
-                };
-                    
                 symlink(&link_target, dst)
                     .or_else(|err_io| {
                         if err_io.kind() == io::ErrorKind::AlreadyExists && self.overwrite {
