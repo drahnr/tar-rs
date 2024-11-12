@@ -582,9 +582,8 @@ impl<'a> EntryFields<'a> {
                             if !self.path_has_base(&link_target, &p) {
                                 // Skip root component, making the target relative to the target dir.
                                 // Also skip prefix because on Windows the path may use the extended syntax.
-                                link_target = PathBuf::from_iter(link_target
-                                    .components()
-                                    .skip_while(|c| {
+                                link_target =
+                                    PathBuf::from_iter(link_target.components().skip_while(|c| {
                                         matches!(*c, Component::RootDir | Component::Prefix(_))
                                     }));
                             }
