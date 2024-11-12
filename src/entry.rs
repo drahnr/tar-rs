@@ -1023,8 +1023,11 @@ fn make_relative(
     let to = to.as_ref();
     let from_n = from.components().count();
     let to_n = to.components().count();
-    let common = 
-    from.components().zip(to.components()).take_while(|(x,y)| x == y).count();
+    let common = from
+        .components()
+        .zip(to.components())
+        .take_while(|(x, y)| x == y)
+        .count();
     assert!(common <= from_n);
     assert!(common < to_n);
     let up = std::path::PathBuf::from_iter(std::iter::repeat_with(||std::path::PathBuf::from("..")).take(from_n.saturating_sub(common+1)));
