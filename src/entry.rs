@@ -1030,7 +1030,10 @@ fn make_relative(
         .count();
     assert!(common <= from_n);
     assert!(common < to_n);
-    let up = std::path::PathBuf::from_iter(std::iter::repeat_with(||std::path::PathBuf::from("..")).take(from_n.saturating_sub(common+1)));
+    let up = std::path::PathBuf::from_iter(
+        std::iter::repeat_with(|| std::path::PathBuf::from(".."))
+            .take(from_n.saturating_sub(common + 1)),
+    );
     let relative = up.join(std::path::PathBuf::from_iter(to.components().skip(common)));
     eprintln!(" rel> {} ^ {}  ------>  {} + {}", from.display(), to.display(), from.display(), relative.display());
     relative
