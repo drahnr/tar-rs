@@ -539,62 +539,31 @@ impl<'a> EntryFields<'a> {
                 )));
             }
 
-            let link_target = match target_base {
-                // If we're unpacking within a directory then ensure that
-                // the destination of this hard link is both present and
-                // inside our own directory. This is needed because we want
-                // to make sure to not overwrite anything outside the root.
-                // If the link points to an absolute path, assume it's relative
-                // to the target dir by removing the leading '/', as we already
-                // do for files, see unpack_in() comments.
-                //
-                // Note that this logic is only needed for hard links
-                // currently. With symlinks the `validate_inside_dst` which
-                // happens before this method as part of `unpack_in` will
-                // use canonicalization to ensure this guarantee. For hard
-                // links though they're canonicalized to their existing path
-                // so we need to validate at this time.
-                Some(ref p) => {
-                    let mut link_target = link_target.to_path_buf();
-                    if link_target.is_absolute() {
-                        // let p = p.canonicalize()?;
-                        if !self.path_has_base(&link_target, &p) {
-                            // Skip root component, making the target relative to the target dir.
-                            // Also skip prefix because on Windows the path may use the extended syntax.
-                            link_target = PathBuf::from_iter(link_target
-                                .components()
-                                .skip_while(|c| {
-                                    matches!(*c, Component::RootDir | Component::Prefix(_))
-                                }));
-                        }
-                        link_target = p.join(link_target);
-                    }
-
-                    if kind.is_hard_link() {
-                        link_target
-                    } else {
-                        /// Create the relative path starting `from` to `to`.
-                        fn make_relative(from: impl AsRef<std::path::Path>, to: impl AsRef<std::path::Path>) -> std::path::PathBuf {
-                            let from = from.as_ref();
-                            let to = to.as_ref();
-                            let from_n = from.components().count();
-                            let to_n = to.components().count();
-                            let common = 
-                            from.components().zip(to.components()).take_while(|(x,y)| x == y).count();
-                            assert!(common <= from_n);
-                            assert!(common < to_n);
-                            let up = std::path::PathBuf::from_iter(std::iter::repeat_with(||std::path::PathBuf::from("..")).take(from_n.saturating_sub(common+1)));
-                            let relative = up.join(std::path::PathBuf::from_iter(to.components().skip(common)));
-                            eprintln!(" rel> {} ^ {}  ------>  {} + {}", from.display(), to.display(), from.display(), relative.display());
-                            relative
-                        }
-                        make_relative(dst, link_target)
-                    }
-                }
-                None => unreachable!(), //link_target.into_owned(),
-            };
-            
             if kind.is_hard_link() {
+                
+                let link_target = match target_base {
+                    Some(ref p) => {
+                        let mut link_target = link_target.to_path_buf();
+                        if link_target.is_absolute() {
+                            let p = std::path::absolute(p)?;
+                            if !self.path_has_base(&link_target, &p) {
+                                // Skip root component, making the target relative to the target dir.
+                                // Also skip prefix because on Windows the path may use the extended syntax.
+                                link_target = PathBuf::from_iter(link_target
+                                    .components()
+                                    .skip_while(|c| {
+                                        matches!(*c, Component::RootDir | Component::Prefix(_))
+                                    }));
+                            }
+                        }
+                        assert!(p.is_absolute());
+                        link_target = p.join(link_target);
+                        assert!(link_target.is_absolute());
+                        link_target
+                    }
+                    None => link_target.into_owned(),
+                };
+                
                 eprintln!(" hard> {} -> {}", dst.display(), link_target.display());
                 fs::hard_link(&link_target, dst).map_err(|err| {
                     Error::new(
@@ -608,6 +577,33 @@ impl<'a> EntryFields<'a> {
                     )
                 })?;
             } else {
+
+                let link_target = match target_base {
+                    Some(ref p) => {
+                        let mut link_target = link_target.to_path_buf();
+                        if link_target.is_absolute() {
+                            let p = std::path::absolute(p)?;
+                            if !self.path_has_base(&link_target, &p) {
+                                // Skip root component, making the target relative to the target dir.
+                                // Also skip prefix because on Windows the path may use the extended syntax.
+                                link_target = PathBuf::from_iter(link_target
+                                    .components()
+                                    .skip_while(|c| {
+                                        matches!(*c, Component::RootDir | Component::Prefix(_))
+                                    }));
+                            }
+    
+                            link_target = p.join(link_target);
+                            dbg!(&link_target);
+                            assert!(link_target.is_absolute());
+                            link_target = make_relative(dst, link_target);
+                        }
+                        assert!(link_target.is_relative());
+                        link_target
+                    }
+                    None => link_target.into_owned(),
+                };
+    
                 eprintln!(" SOFT> {} -> {}", dst.display(), link_target.display());
                 symlink(&link_target, dst)
                     .or_else(|err_io| {
@@ -1023,4 +1019,21 @@ impl<'a> Read for EntryIo<'a> {
             EntryIo::Data(ref mut io) => io.read(into),
         }
     }
+}
+
+
+/// Create the relative path starting `from` to `to`.
+fn make_relative(from: impl AsRef<std::path::Path>, to: impl AsRef<std::path::Path>) -> std::path::PathBuf {
+    let from = from.as_ref();
+    let to = to.as_ref();
+    let from_n = from.components().count();
+    let to_n = to.components().count();
+    let common = 
+    from.components().zip(to.components()).take_while(|(x,y)| x == y).count();
+    assert!(common <= from_n);
+    assert!(common < to_n);
+    let up = std::path::PathBuf::from_iter(std::iter::repeat_with(||std::path::PathBuf::from("..")).take(from_n.saturating_sub(common+1)));
+    let relative = up.join(std::path::PathBuf::from_iter(to.components().skip(common)));
+    eprintln!(" rel> {} ^ {}  ------>  {} + {}", from.display(), to.display(), from.display(), relative.display());
+    relative
 }
