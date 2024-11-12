@@ -11,7 +11,10 @@ macro_rules! t {
     ($e:expr) => {
         match $e {
             Ok(v) => v,
-            Err(e) => { eprintln!("{} returned {}", stringify!($e), e); Err(e).unwrap() }
+            Err(e) => {
+                eprintln!("{} returned {}", stringify!($e), e);
+                Err(e).unwrap()
+            }
         }
     };
 }
