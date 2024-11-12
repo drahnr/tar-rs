@@ -561,7 +561,7 @@ impl<'a> EntryFields<'a> {
                     }
                     None => link_target.into_owned(),
                 };
-                
+
                 fs::hard_link(&link_target, dst).map_err(|err| {
                     Error::new(
                         err.kind(),
