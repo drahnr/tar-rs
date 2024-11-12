@@ -597,7 +597,7 @@ impl<'a> EntryFields<'a> {
                     }
                     None => link_target.into_owned(),
                 };
-    
+
                 symlink(&link_target, dst)
                     .or_else(|err_io| {
                         if err_io.kind() == io::ErrorKind::AlreadyExists && self.overwrite {
