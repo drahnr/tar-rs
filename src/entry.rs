@@ -1035,6 +1035,12 @@ fn make_relative(
             .take(from_n.saturating_sub(common + 1)),
     );
     let relative = up.join(std::path::PathBuf::from_iter(to.components().skip(common)));
-    eprintln!(" rel> {} ^ {}  ------>  {} + {}", from.display(), to.display(), from.display(), relative.display());
+    eprintln!(
+        " rel> {} ^ {}  ------>  {} + {}",
+        from.display(),
+        to.display(),
+        from.display(),
+        relative.display()
+    );
     relative
 }
