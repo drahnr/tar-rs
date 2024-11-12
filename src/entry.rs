@@ -540,7 +540,6 @@ impl<'a> EntryFields<'a> {
             }
 
             if kind.is_hard_link() {
-                
                 let link_target = match target_base {
                     Some(ref p) => {
                         let mut link_target = link_target.to_path_buf();
