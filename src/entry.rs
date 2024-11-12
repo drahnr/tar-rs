@@ -568,7 +568,11 @@ impl<'a> EntryFields<'a> {
                                 }));
                         }
                         link_target = p.join(link_target);
-                        
+                    }
+
+                    if kind.is_hard_link() {
+                        link_target
+                    } else {
                         /// Create the relative path starting `from` to `to`.
                         fn make_relative(from: impl AsRef<std::path::Path>, to: impl AsRef<std::path::Path>) -> std::path::PathBuf {
                             let from = from.as_ref();
@@ -584,17 +588,14 @@ impl<'a> EntryFields<'a> {
                             eprintln!(" rel> {} ^ {}  ------>  {} + {}", from.display(), to.display(), from.display(), relative.display());
                             relative
                         }
-                    }
-                    if kind.is_hard_link() {
-                        link_target
-                    } else {
                         make_relative(dst, link_target)
                     }
                 }
-                None => link_target.into_owned(),
+                None => unreachable!(), //link_target.into_owned(),
             };
             
             if kind.is_hard_link() {
+                eprintln!(" hard> {} -> {}", dst.display(), link_target.display());
                 fs::hard_link(&link_target, dst).map_err(|err| {
                     Error::new(
                         err.kind(),
@@ -607,6 +608,7 @@ impl<'a> EntryFields<'a> {
                     )
                 })?;
             } else {
+                eprintln!(" SOFT> {} -> {}", dst.display(), link_target.display());
                 symlink(&link_target, dst)
                     .or_else(|err_io| {
                         if err_io.kind() == io::ErrorKind::AlreadyExists && self.overwrite {
