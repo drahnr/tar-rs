@@ -1014,7 +1014,6 @@ impl<'a> Read for EntryIo<'a> {
     }
 }
 
-
 /// Create the relative path starting `from` to `to`.
 fn make_relative(from: impl AsRef<std::path::Path>, to: impl AsRef<std::path::Path>) -> std::path::PathBuf {
     let from = from.as_ref();
